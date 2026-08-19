@@ -62,10 +62,12 @@
     return new Uint8Array(await new Response(stream).arrayBuffer());
   }
 
-  async function fetchParts(parts) {
+  async function fetchParts(parts, build) {
     var buffers = [];
     for (var i = 0; i < parts.length; i++) {
-      var res = await fetch('/' + parts[i][0], { cache: 'force-cache' });
+      // Same reason as the worker: a rebuild must not be masked by a cache.
+      var url = '/' + parts[i][0] + (build ? '?b=' + build : '');
+      var res = await fetch(url, { cache: 'force-cache' });
       if (!res.ok) throw new Error('missing data part');
       buffers.push(new Uint8Array(await res.arrayBuffer()));
     }
@@ -174,7 +176,7 @@
 
     Loader.stage('Loading instrument catalogue');
     var md = keyDoc.manifest;
-    var manifestBytes = await fetchParts(md.p);
+    var manifestBytes = await fetchParts(md.p, keyDoc.build);
     var manifestJson = await decryptAll(
       manifestBytes, master, hexToBytes(md.f), keyDoc.chunk
     );

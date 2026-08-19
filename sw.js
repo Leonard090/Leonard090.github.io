@@ -96,7 +96,7 @@ function hexToBytes(hex) {
  * Read a byte range of the logical ciphertext stream, which is stored as a
  * sequence of part files. Yields Uint8Arrays in order.
  */
-async function* readCipher(parts, from, to) {
+async function* readCipher(parts, from, to, build) {
   let cursor = 0;
   for (const [name, size] of parts) {
     const partStart = cursor;
@@ -112,7 +112,10 @@ async function* readCipher(parts, from, to) {
     const whole = lo === 0 && hi === size;
     if (!whole) headers.Range = `bytes=${lo}-${hi - 1}`;
 
-    const res = await fetch('/' + name, { headers, cache: 'force-cache' });
+    // The build token makes a rebuilt blob a different URL, so an aggressively
+    // cached copy of the previous build can never be served in its place.
+    const url = '/' + name + (build ? '?b=' + build : '');
+    const res = await fetch(url, { headers, cache: 'force-cache' });
     if (!res.ok && res.status !== 206) throw new Error(`part ${name}: HTTP ${res.status}`);
 
     // If the host ignored the Range header, trim client-side.
@@ -134,7 +137,7 @@ async function* readCipher(parts, from, to) {
  * Decrypt a plaintext byte range of a file into a ReadableStream.
  * `chunk` is the plaintext chunk size the bundle was built with.
  */
-function decryptStream(meta, key, chunkSize, start, end, onProgress) {
+function decryptStream(meta, key, chunkSize, start, end, onProgress, build) {
   const encChunk = chunkSize + TAG;
   const fid = hexToBytes(meta.f);
 
@@ -143,7 +146,7 @@ function decryptStream(meta, key, chunkSize, start, end, onProgress) {
   const from = first * encChunk;
   const to = Math.min((last + 1) * encChunk, totalCipherBytes(meta));
 
-  const src = readCipher(meta.p, from, to);
+  const src = readCipher(meta.p, from, to, build);
   let pending = new Uint8Array(0);
   let index = first;
   let emitted = 0;               // plaintext bytes produced so far
@@ -320,7 +323,8 @@ self.addEventListener('fetch', (event) => {
     if (big) broadcast({ type: 'decrypt-start', path: rel, total: end - start });
 
     try {
-      const stream = decryptStream(meta, s.key, chunkSize, start, end, onProgress);
+      const stream = decryptStream(meta, s.key, chunkSize, start, end, onProgress,
+                                   s.manifest.build);
 
       // Game pages are the original site's HTML and carry none of our script,
       // so the loading screen is injected here. Only small documents are
