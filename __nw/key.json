@@ -1,0 +1,1 @@
+{"v":1,"kdf":"PBKDF2-SHA256","iters":4000000,"salt":"7cf34018f475d7c603627e7c19fdda9c","nonce":"62c71e232fa1e4d877561b83","wrapped":"63b629bb9d852174afa0753c3224ae56553eb5fe09d58de770da096cb215dc9146e758032c7b14e30bc91016d0146ab6","manifest":{"f":"6f29b76196d000e0","s":1005576,"p":[["d/32/6f8fcbe3ca2153ae815bbcdb56ab91.bin",1005592]],"z":"gzip"},"chunk":4194304}

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Northwind Markets | Execution and Research Terminal</title>
+<link rel="stylesheet" href="/__nw/site.css">
+<style>
+  /* Gate-specific additions on top of the shared Northwind shell. */
+  .gate-card { max-width: 420px; margin-left: auto; }
+  .gate-card .field { margin-bottom: 14px; }
+  .gate-note { color: var(--text-dim); font-size: 12.5px; margin-top: 12px; }
+  .remember { display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+              color: var(--text-mid); font-size: 13px; }
+  .remember input { accent-color: var(--accent); }
+  .lib { display: none; }
+  body.is-unlocked .lib { display: block; }
+  body.is-unlocked .gate-hide { display: none; }
+  .lib-grid { display: grid; gap: 10px;
+              grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+  .lib-item { display: block; padding: 11px 13px; background: var(--panel);
+              border: 1px solid var(--line); border-radius: var(--radius-s);
+              color: var(--text); font-size: 13.5px; }
+  .lib-item:hover { border-color: var(--accent); color: var(--text); }
+  .lib-item span { display: block; color: var(--text-dim); font-size: 11.5px;
+                   font-family: var(--mono); margin-top: 3px; }
+</style>
+</head>
+<body class="auth-page">
+
+<nav class="nav">
+  <div class="wrap nav-inner">
+    <div class="brand"><span class="brand-mark">N</span> Northwind Markets</div>
+    <div class="nav-links">
+      <a href="#markets">Markets</a>
+      <a href="#platform">Platform</a>
+      <a href="#research">Research</a>
+    </div>
+    <div class="nav-right">
+      <a class="btn btn-ghost" href="#signin">Sign in</a>
+    </div>
+  </div>
+</nav>
+
+<div class="cloud-bar">
+  <div class="wrap cloud-bar-inner">
+    <span><span class="dot pulse"></span><b>All systems operational</b></span>
+    <span class="sep">|</span>
+    <span>AWS <b>us-east-1</b> <span>(US East, N. Virginia)</span></span>
+    <div class="right">
+      <span>p50 <b id="cb-lat">11.0 ms</b></span>
+    </div>
+  </div>
+</div>
+
+<div class="tape"><div class="tape-track" id="tape"></div></div>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">Simulated environment</div>
+      <h1>Institutional execution,<br>without the institution.</h1>
+      <p class="lede">
+        Direct market access, consolidated order books and a research desk in a
+        single terminal. Northwind routes across venues, prices the spread and
+        settles internally, so you see one blended fill instead of a dozen.
+      </p>
+      <p class="hero-note">
+        Paper trading only. No real orders are routed and no funds are accepted.
+      </p>
+    </div>
+
+    <div class="auth-card gate-card" id="signin">
+      <h2>Sign in to your terminal</h2>
+      <p class="sub">Desk and Institutional accounts only.</p>
+
+      <div id="err" class="alert alert-err hide"></div>
+
+      <!--
+        No credential is transmitted anywhere. The passphrase is used only to
+        derive a key inside this browser; there is no server to send it to.
+        The email input has no name attribute and is never serialised.
+      -->
+      <form id="gate-form" autocomplete="off" novalidate>
+        <div class="field">
+          <label for="email">Account email</label>
+          <input id="email" type="email" placeholder="you@firm.com"
+                 autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field">
+          <label for="code">Password</label>
+          <input id="code" type="password" placeholder="Enter password"
+                 autocomplete="off" spellcheck="false" required>
+        </div>
+        <label class="remember">
+          <input type="checkbox" id="remember" checked>
+          Keep this terminal signed in on this device
+        </label>
+        <button class="btn btn-primary btn-block" id="gate-btn" type="submit">Sign in</button>
+      </form>
+
+      <div class="gate-note">
+        Desk credentials rotate every session. Uncheck the box on a shared
+        machine so the session is not retained after you close the browser.
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="stats">
+    <div class="stat"><div class="stat-k">Simulated volume</div><div class="stat-v" id="s-vol">0</div></div>
+    <div class="stat"><div class="stat-k">Instruments</div><div class="stat-v" id="s-inst">0</div></div>
+    <div class="stat"><div class="stat-k">Median latency</div><div class="stat-v" id="s-lat">0 ms</div></div>
+    <div class="stat"><div class="stat-k">Venues modelled</div><div class="stat-v" id="s-ven">0</div></div>
+  </div>
+</div>
+
+<section class="section wrap lib" id="library">
+  <div class="section-head">
+    <div>
+      <h2>Instrument catalogue</h2>
+      <p><span id="unlocked-count">0</span> instruments cleared for this desk.</p>
+    </div>
+    <button class="btn btn-ghost" id="lock-btn" type="button">Lock terminal</button>
+  </div>
+  <div class="lib-grid" id="lib-grid"></div>
+</section>
+
+<section class="section wrap gate-hide" id="markets">
+  <div class="section-head">
+    <div>
+      <h2>Market movers</h2>
+      <p>Synthetic book, regenerated each time the page loads.</p>
+    </div>
+    <span class="panel-sub" id="asof">as of --:--:--</span>
+  </div>
+  <div class="lib-grid" id="movers"></div>
+</section>
+
+<section class="section wrap gate-hide" id="platform">
+  <div class="section-head">
+    <div>
+      <h2>Built for operators</h2>
+      <p>Three things the terminal does that a retail app will not.</p>
+    </div>
+  </div>
+  <div class="grid3">
+    <div class="card">
+      <div class="card-ico">&#9636;</div>
+      <h3>Consolidated book</h3>
+      <p>
+        Depth from every modelled venue is merged into one ladder, so you price
+        against total available size rather than whichever venue answered first.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-ico">&#9881;</div>
+      <h3>Deterministic replay</h3>
+      <p>
+        Every session is recorded tick by tick and can be replayed against a
+        changed strategy. Same input, same fills, every run.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-ico">&#9673;</div>
+      <h3>Encrypted at rest</h3>
+      <p>
+        Desk data is sealed with per-session keys and never written to disk in
+        the clear. Nothing is readable without an authenticated terminal.
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="disclaimer">
+      <strong>This is not a real brokerage.</strong>
+      Northwind Markets is a fictional demonstration site. It is not a
+      broker-dealer, holds no customer accounts, accepts no funds, and is not
+      affiliated with any real firm. This form does not create or authenticate
+      a customer account and no account exists to recover.
+    </div>
+  </div>
+</footer>
+
+<script>
+/* Synthetic market furniture. Purely cosmetic; regenerated per load. */
+(function () {
+  'use strict';
+  var SYMS = ['NWX','ALDR','BRGN','CTHM','DVSR','EKRN','FLTB','GRDN','HLYX','MRDN','PTRC','SVLN'];
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+
+  var tape = document.getElementById('tape');
+  if (tape) {
+    var html = '';
+    for (var pass = 0; pass < 2; pass++) {
+      for (var i = 0; i < SYMS.length; i++) {
+        var chg = rnd(-2.4, 2.4);
+        html += '<span class="tape-item"><span class="tape-sym">' + SYMS[i] +
+                '</span> <span class="tape-px">' + rnd(12, 480).toFixed(2) +
+                '</span> <span class="' + (chg >= 0 ? 'up' : 'down') + '">' +
+                (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%</span></span>';
+      }
+    }
+    tape.innerHTML = html;
+  }
+
+  var movers = document.getElementById('movers');
+  if (movers) {
+    var out = '';
+    for (var j = 0; j < 8; j++) {
+      var c = rnd(-3.2, 3.2);
+      out += '<div class="lib-item">' + SYMS[j] +
+             '<span>' + rnd(12, 480).toFixed(2) + '  ' +
+             (c >= 0 ? '+' : '') + c.toFixed(2) + '%</span></div>';
+    }
+    movers.innerHTML = out;
+  }
+
+  function setText(id, v) { var n = document.getElementById(id); if (n) n.textContent = v; }
+  setText('s-vol', (rnd(18, 42)).toFixed(1) + 'M');
+  setText('s-inst', Math.floor(rnd(1200, 2600)));
+  setText('s-lat', rnd(8, 16).toFixed(1) + ' ms');
+  setText('s-ven', Math.floor(rnd(9, 18)));
+  setText('asof', new Date().toLocaleTimeString());
+  setInterval(function () {
+    setText('cb-lat', rnd(9, 14).toFixed(1) + ' ms');
+  }, 2600);
+})();
+</script>
+<script src="/__nw/loader.js"></script>
+<script src="/__nw/gate.js"></script>
+</body>
+</html>
