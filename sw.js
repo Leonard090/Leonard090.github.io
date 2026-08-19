@@ -236,6 +236,31 @@ function resolve(manifest, pathname) {
   return null;
 }
 
+/**
+ * What an unauthenticated (or unknown) request gets back.
+ *
+ * Hosts disagree about missing files: GitHub Pages serves 404.html, while a
+ * Hugging Face static Space answers a bare "Entry not found". Relying on the
+ * host would make the cover story only as good as whoever is hosting it, so
+ * page navigations are answered here with the terminal itself, at status 200.
+ * Non-document requests fall through untouched - an image or script that
+ * quietly returned an HTML page would only produce confusing errors.
+ */
+async function cover(request) {
+  const accepts = request.headers.get('accept') || '';
+  const isPage = request.mode === 'navigate' ||
+                 (request.destination === '' && accepts.indexOf('text/html') !== -1) ||
+                 request.destination === 'document';
+  if (!isPage) return fetch(request);
+
+  const res = await fetch('/index.html', { cache: 'no-cache' });
+  if (!res.ok) return fetch(request);
+  return new Response(await res.blob(), {
+    status: 200,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }
+  });
+}
+
 async function broadcast(msg) {
   const clients = await self.clients.matchAll({ includeUncontrolled: true });
   for (const c of clients) c.postMessage(msg);
@@ -277,10 +302,10 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith((async () => {
     const s = await restore();
-    if (!s) return fetch(event.request);       // locked: fall through to the Northwind page
+    if (!s) return cover(event.request);       // locked: everything is the terminal
 
     const rel = resolve(s.manifest, url.pathname);
-    if (!rel) return fetch(event.request);
+    if (!rel) return cover(event.request);
 
     const meta = s.manifest.files[rel];
     const chunkSize = s.manifest.chunk;
