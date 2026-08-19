@@ -1,0 +1,4 @@
+# Everything published here is encrypted binary. Git's end-of-line
+# translation would silently corrupt it (Git for Windows enables
+# core.autocrlf by default), so disable text handling for all paths.
+* -text
